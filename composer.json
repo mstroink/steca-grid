@@ -1,0 +1,14 @@
+{
+    "name": "mstroink/StecaGrid",
+    "description": "Collects data from StecaGrid inverter",
+    "type": "project",
+    "require": {
+        "guzzlehttp/guzzle": "~6.0",
+        "phpunit/phpunit": "^7.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "mstroink\\StecaGrid\\": "src"
+        }
+    }
+}
