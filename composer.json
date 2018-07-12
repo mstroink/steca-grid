@@ -1,6 +1,6 @@
 {
-    "name": "mstroink/StecaGrid",
-    "description": "Collects data from StecaGrid inverter",
+    "name": "mstroink/steca-grid",
+    "description": "Collects data from StecaGrid inverter.",
     "type": "project",
     "require": {
         "guzzlehttp/guzzle": "~6.0",

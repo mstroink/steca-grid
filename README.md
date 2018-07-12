@@ -1,9 +1,13 @@
-# StecaGrid
+# StecaGrid (unfinished)
 
 install
 
-`composer install`
+`composer require mstroink/steca-grid "dev-master"`
 
 run tests
 
-`phpunit tests`
+`vendor/bin/phpunit tests`
+
+# usage
+
+see docs/example.php
