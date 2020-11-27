@@ -1,66 +1,78 @@
 <?php
-namespace mstroink\StecaGrid;
+declare(strict_types=1);
 
-use GuzzleHttp\Client;
+namespace MStroink\StecaGrid;
+
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\TransferException;
+use MStroink\StecaGrid\Exception\HttpClientException;
+use MStroink\StecaGrid\Exception\HttpServerException;
+use Psr\Http\Message\ResponseInterface;
 
 class Inverter
 {
-    protected $_defaultConfig = [
+    protected const DAILY_ENDPOINT = 'gen.yield.day.chart.js';
+    protected const MEASUREMENTS_ENDPOINT = 'gen.measurements.table.js';
+
+    protected const DEFAULT_CONFIG = [
         'timeout' => 4,
-        'host' => '192.168.1.164',
+        'connect_timeout' => 4,
     ];
 
-    private $errors = [];
+    protected GuzzleClient $Client;
 
-    protected $Client;
-
-    public function __construct($config = [], $client = null)
+    public function __construct(GuzzleClient $client)
     {
-        $this->config = array_merge($this->_defaultConfig, $config);
-        if ($client == null) {
-            $client = $this->getClient();
-        }
-
         $this->Client = $client;
     }
 
-    protected function call(string $endpoint)
+    public static function create(string $host, array $clientConfig = []): self
+    {
+        $config = array_merge(
+            self::DEFAULT_CONFIG,
+            $clientConfig,
+            ['base_uri' => sprintf('http://%s/', $host)]
+        );
+
+        return new self(new GuzzleClient($config));
+    }
+
+    protected function call(string $endpoint): string
     {
         try {
-            $payload = (string)$this->Client->request('GET', $endpoint)->getBody();
-        } catch (\GuzzleHttp\Exception\ConnectException $e) {
-            $this->errors[] = $e;
-            //inventer could be offline or timeout. Do nothing.
+            $response = $this->Client->request('GET', $endpoint);
+        } catch (TransferException $e) {
+            throw HttpServerException::networkError($e);
         }
 
-        return $payload ?? false;
+        if ($response->getStatusCode() !== 200) {
+            $this->handleErrors($response);
+        }
+
+        return (string) $response->getBody();
     }
 
-    public function getDaily()
+    public function getDaily(): float
     {
-        $payload = $this->call('gen.yield.day.chart.js');
+        $payload = $this->call(self::DAILY_ENDPOINT);
 
-        if (!$payload) {
-            return false;
+        $match = \preg_match("/\(\"labelValueId\"\)\.innerHTML\s=\s\"\s{1,4}(\d+\.?(?:\d+)?)/", $payload, $daily);
+
+        if (!$match) {
+            throw new \RuntimeException('Error processing response');
         }
 
-        preg_match("/\(\"labelValueId\"\)\.innerHTML\s=\s\"\s{1,4}(\d+\.?(?:\d+)?)/", $payload, $daily);
-
-        return $daily[1];
+        return (float) $daily[1];
     }
 
-    public function getMeasurements()
+    public function getMeasurements(): array
     {
-        $payload = $this->call('gen.measurements.table.js');
+        $payload = $this->call(self::MEASUREMENTS_ENDPOINT);
 
-        if (!$payload) {
-            return false;
-        }
-        
         $labels = ['U DC', 'I DC', 'U AC', 'I AC', 'F AC', 'P AC'];
 
         $data = [];
-        foreach($labels as $label) {
+        foreach ($labels as $label) {
             $regex = $label . "<\/td><td align='right'>\s*(\d+(?:\.\d+)?)";
             preg_match("/$regex/", $payload, $match);
 
@@ -72,17 +84,16 @@ class Inverter
         return $data;
     }
 
-    protected function getClient()
+    protected function handleErrors(ResponseInterface $response): void
     {
-        return new Client([
-            'base_uri' => sprintf('http://%s/', $this->config['host']),
-            'timeout' => $this->config['timeout'],
-            'connect_timeout' => $this->config['timeout']
-        ]);
-    }
+        $statusCode = $response->getStatusCode();
+        switch ($statusCode) {
+            case 404:
+                throw HttpClientException::notFound($response);
+            case 500:
+                throw HttpServerException::serverError();
+        }
 
-    public function getErrors() : array
-    {
-        return $this->errors;
+        throw HttpServerException::unknownHttpResponseCode($statusCode);
     }
 }

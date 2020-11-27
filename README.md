@@ -1,13 +1,24 @@
-# StecaGrid (unfinished)
+# StecaGrid
+Dislaimer: i don't own a StecaGrid Inverter
 
-install
+# Install
 
-`composer require mstroink/steca-grid "dev-master"`
+`composer require mstroink/steca-grid`
 
 run tests
 
-`vendor/bin/phpunit tests`
+`vendor/bin/phpunit`
 
-# usage
+# Usage
 
-see docs/example.php
+```php
+use MStroink\StecaGrid\Inverter;
+
+require_once 'vendor/autoload.php';
+
+$inverter = Inverter::create('192.168.1.164');
+
+echo "<pre>";
+print_r($inverter->getDaily());
+print_r($inverter->getMeasurements());
+```

@@ -1,9 +1,9 @@
 <?php
 
-namespace mstroink\StecaGrid\Test;
+namespace MStroink\StecaGrid\Test;
 
-use mstroink\StecaGrid\Inverter;
-use GuzzleHttp\Client;
+use MStroink\StecaGrid\Inverter;
+use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
@@ -11,20 +11,36 @@ use PHPUnit\Framework\TestCase;
 
 class InverterTest extends TestCase
 {
+    protected MockHandler $MockHandler;
+    protected Inverter $Inverter;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->MockHandler = new MockHandler();
+        $handler = HandlerStack::create($this->MockHandler);
+        $client = new GuzzleClient(['handler' => $handler]);
+        $this->Inverter = new Inverter($client);
+    }
+
     public function testShouldReturnDaily()
     {
-        $body = file_get_contents(dirname(__FILE__) . '/gen.yield.day.chart.js');
-        $inverter = $this->getInverter(200, $body);
-        $result = $inverter->getDaily();
+        $body = file_get_contents(dirname(__FILE__) . '/Fixture/gen.yield.day.chart.js');
+        $this->MockHandler->append(new Response(200, [], $body));
+
+        $result = $this->Inverter->getDaily();
 
         $this->assertEquals('12.570', $result);
     }
 
     public function testShouldReturnMeasurements()
     {
-        $body = file_get_contents(dirname(__FILE__) . '/gen.measurements.table.js');
-        $inverter = $this->getInverter(200, $body);
-        $result = $inverter->getMeasurements();
+        $body = file_get_contents(dirname(__FILE__) . '/Fixture/gen.measurements.table.js');
+        $this->MockHandler->append(new Response(200, [], $body));
+
+        $result = $this->Inverter->getMeasurements();
+
         $expected = [
             'U DC' => '351.99',
             'I DC' => '0.55',
@@ -37,12 +53,9 @@ class InverterTest extends TestCase
         $this->assertEquals($expected, $result);
     }
 
-    private function getInverter($status, $body = null)
+    protected function tearDown(): void
     {
-        $mock = new MockHandler([new Response($status, [], $body)]);
-        $handler = HandlerStack::create($mock);
-        $client = new Client(['handler' => $handler]);
-
-        return new Inverter([], $client);
+        parent::tearDown();
+        unset($this->Inverter, $this->mockHandler);
     }
 }
