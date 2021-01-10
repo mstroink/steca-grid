@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace MStroink\StecaGrid\Exception;
@@ -16,7 +17,7 @@ class HttpClientException extends InverterException
         $this->response = $response;
     }
 
-    public static function notFound(ResponseInterface $response)
+    public static function notFound(ResponseInterface $response): self
     {
         return new self('The endpoint you have tried to access does not exist.', 404, $response);
     }
